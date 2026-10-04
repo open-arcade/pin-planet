@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pin Planet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#7fd8ff;--card:#fffdf5;--line:#2b1a4a;--ink:#2b1a4a;--mut:#6b5a99;--acc:#ffd23f;--pri:#ff5ea8;--ok:#12a35f;--grad:#39d98a;--sh:0 5px 0 #2b1a4a}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:600 15px/1.4 Fredoka,"Trebuchet MS",system-ui,sans-serif;overflow:hidden}
+canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.box{position:fixed;left:50%;transform:translateX(-50%);text-align:center;background:var(--card);border:3px solid var(--line);border-radius:20px;padding:8px 20px;box-shadow:var(--sh)}
+#tbar{position:fixed;top:0;left:0;right:0;height:14px;z-index:3;background:var(--card);border-bottom:3px solid var(--line)}
+#tb{display:block;height:100%;width:100%;background:var(--grad);transition:width .25s linear}
+#hud{top:calc(env(safe-area-inset-top,0px) + 26px);display:flex;gap:26px;white-space:nowrap}
+#hud b{display:block;font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+#hud small,#clue small{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+#hud.low #tm{color:#ff3b5c;animation:pl .8s infinite}
+@keyframes pl{50%{transform:scale(1.3)}}
+#clue{top:calc(env(safe-area-inset-top,0px) + 96px);max-width:92vw;padding:8px 28px;background:var(--pri)}
+#clue small{color:#ffe3f1}
+#clue h2{margin:0;font-size:27px;font-weight:700;color:#fff;-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:0 3px 0 var(--ink)}
+#bar{bottom:calc(env(safe-area-inset-bottom,0px) + 20px);min-width:270px}
+.btn{background:var(--acc);color:var(--ink);border:3px solid var(--ink);border-radius:999px;padding:11px 28px;font:700 17px Fredoka,system-ui,sans-serif;cursor:pointer;box-shadow:var(--sh);transition:transform .1s,box-shadow .1s}
+.btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 7px 0 var(--ink)}
+.btn:active:not(:disabled){transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
+.btn:disabled{background:#d9d4ea;color:#8d82b5;border-color:#8d82b5;box-shadow:0 3px 0 #8d82b5;cursor:not-allowed}
+.btn.g{background:#fff}
+#zm{position:fixed;right:12px;top:50%;display:flex;flex-direction:column;gap:8px}
+#zm button{width:42px;height:42px;border-radius:14px;border:3px solid var(--ink);background:var(--card);color:var(--ink);font:700 24px Fredoka,sans-serif;cursor:pointer;box-shadow:0 4px 0 var(--ink)}
+#zm button:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.dist{font-size:22px;font-weight:700}
+.pts{font-size:38px;font-weight:700;color:var(--pri);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:0 3px 0 var(--ink)}
+.brk{color:var(--mut);font-size:12px;margin-bottom:10px}
+#res:not([hidden]){animation:pop .4s}
+@keyframes pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.07)}100%{transform:scale(1);opacity:1}}
+#ov{position:fixed;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto;background:linear-gradient(180deg,#7fd8ff,#c9f1ff 55%,#ffeaa6)}
+#ov::before{content:"";position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(#2b1a4a1a 1px,transparent 1px),linear-gradient(90deg,#2b1a4a1a 1px,transparent 1px);background-size:48px 48px;-webkit-mask-image:radial-gradient(circle at 50% 40%,#000,transparent 80%);mask-image:radial-gradient(circle at 50% 40%,#000,transparent 80%)}
+#ov[hidden]{display:none}
+.card{position:relative;width:min(440px,100%);text-align:center;margin:auto}
+.logo{animation:bn 1.6s ease-in-out infinite;filter:drop-shadow(0 5px 0 #2b1a4a)}
+@keyframes bn{50%{transform:translateY(-8px) rotate(5deg)}}
+.card h1{font-size:50px;font-weight:700;letter-spacing:.04em;margin:4px 0 2px;color:var(--acc);-webkit-text-stroke:3px var(--ink);paint-order:stroke fill;text-shadow:0 6px 0 var(--ink);transform:rotate(-2deg)}
+.tag{color:var(--mut);font-weight:600}
+.best{margin:22px 0;padding:12px;border:3px solid var(--ink);border-radius:20px;background:var(--card);box-shadow:var(--sh)}
+.best small{display:block;color:var(--mut);font-size:11px;letter-spacing:.08em;font-weight:700}
+.best b{display:block;font-size:44px;font-weight:700;color:#ff9f1c;-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:0 4px 0 var(--ink)}
+.best .sub{font-size:13px;margin-top:4px;letter-spacing:0}
+.modes{display:grid;gap:12px}
+.mode{display:flex;align-items:center;gap:14px;padding:12px 16px;color:var(--ink);text-align:left;border:3px solid var(--ink);border-radius:18px;background:#fff;cursor:pointer;font:inherit;box-shadow:var(--sh);transition:transform .12s,box-shadow .12s}
+.mode:nth-child(1){background:#ffd23f}.mode:nth-child(2){background:#5fd4ff}.mode:nth-child(3){background:#ff8fc8}
+.mode:hover{transform:translateY(-3px) rotate(-1deg);box-shadow:0 8px 0 var(--ink)}
+.mode:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
+.mode i{font-style:normal;font-size:30px}
+.mode div{flex:1}.mode b{display:block;font-size:19px;font-weight:700}.mode span{font-size:12px;opacity:.75}
+.mode em{font-style:normal;font-weight:700;text-align:right;font-size:17px}
+.mode em small{display:block;font-size:10px;font-weight:600;opacity:.7}
+.hint{color:var(--mut);font-size:13px;margin-top:16px}
+.list{margin:14px 0;text-align:left;font-size:14px;color:var(--mut);background:var(--card);border:3px solid var(--ink);border-radius:18px;padding:6px 14px;box-shadow:var(--sh)}
+.list div{display:flex;justify-content:space-between;padding:6px 0;border-bottom:2px dashed #2b1a4a33}.list div:last-child{border:0}
+.big{font-size:64px;font-weight:700;line-height:1.1;color:var(--acc);-webkit-text-stroke:3px var(--ink);paint-order:stroke fill;text-shadow:0 6px 0 var(--ink)}
+.rank{font-size:30px;font-weight:700;margin:6px 0;color:var(--pri);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:0 4px 0 var(--ink)}
+.nb{color:var(--ok);font-weight:700;margin-top:6px;font-size:18px}
+</style></head>
+<body>
+<canvas id="c"></canvas>
+<div id="tbar"><i id="tb"></i></div>
+<div class="box" id="hud"><div><small>Round</small><b id="rd">1/5</b></div><div><small>Score</small><b id="sc">0</b></div><div><small>Time</small><b id="tm">60</b></div></div>
+<div class="box" id="clue"><small>Where is…</small><h2 id="nm"></h2></div>
+<div id="zm"><button id="zi">+</button><button id="zo">−</button></div>
+<div class="box" id="bar"><button class="btn" id="go" disabled>Click the map to place a pin</button><div id="res" hidden></div></div>
+<div id="ov"><div class="card" id="card"></div></div>
+
+<script>
+const $=id=>document.getElementById(id),cv=$('c'),ctx=cv.getContext('2d');
+const MODES={blitz:{n:3,label:'Blitz',ic:'⚡',tag:'Quick fire'},regular:{n:5,label:'Regular',ic:'🎯',tag:'The classic'},long:{n:10,label:'Odyssey',ic:'🧭',tag:'The marathon'}};
+const LIM=60,fmt=n=>Math.round(n).toLocaleString('en-US');
+const L="Eiffel Tower, Paris|48.858|2.294\nMachu Picchu, Peru|-13.163|-72.545\nSydney Opera House|-33.857|151.215\nTaj Mahal, Agra|27.175|78.042\nGreat Pyramid of Giza|29.979|31.134\nStatue of Liberty, New York|40.689|-74.045\nColosseum, Rome|41.890|12.492\nChrist the Redeemer, Rio|-22.952|-43.211\nMount Fuji, Japan|35.361|138.727\nTable Mountain, Cape Town|-33.963|18.403\nPetra, Jordan|30.329|35.444\nAngkor Wat, Cambodia|13.412|103.867\nBurj Khalifa, Dubai|25.197|55.274\nGolden Gate Bridge, San Francisco|37.820|-122.479\nBig Ben, London|51.501|-0.125\nChichén Itzá, Mexico|20.684|-88.568\nSantorini, Greece|36.393|25.461\nReykjavík, Iceland|64.147|-21.943\nNairobi, Kenya|-1.292|36.822\nMumbai, India|19.076|72.878\nBuenos Aires, Argentina|-34.604|-58.382\nMoscow, Russia|55.756|37.617\nBeijing, China|39.904|116.407\nLagos, Nigeria|6.524|3.379\nMexico City|19.433|-99.133\nToronto, Canada|43.653|-79.383\nSingapore|1.352|103.820\nIstanbul, Türkiye|41.008|28.978\nAnchorage, Alaska|61.218|-149.900\nAuckland, New Zealand|-36.848|174.763\nLima, Peru|-12.046|-77.043\nBangkok, Thailand|13.756|100.502\nSeoul, South Korea|37.566|126.978\nHavana, Cuba|23.114|-82.366\nOslo, Norway|59.914|10.752\nMarrakech, Morocco|31.629|-7.981\nKathmandu, Nepal|27.717|85.324\nUlaanbaatar, Mongolia|47.886|106.906\nPerth, Australia|-31.950|115.860\nVancouver, Canada|49.283|-123.121\nBogotá, Colombia|4.711|-74.072\nTehran, Iran|35.689|51.389\nAddis Ababa, Ethiopia|9.030|38.746\nJakarta, Indonesia|-6.209|106.846\nMadrid, Spain|40.417|-3.704\nHonolulu, Hawaii|21.307|-157.858\nUluru, Australia|-25.345|131.036\nVictoria Falls|-17.925|25.857\nEaster Island Moai|-27.113|-109.349\nGrand Canyon, USA|36.107|-112.113\nMount Everest|27.988|86.925\nStonehenge, England|51.179|-1.826\nSagrada Família, Barcelona|41.404|2.174\nMount Kilimanjaro|-3.067|37.355\nLisbon, Portugal|38.722|-9.139\nDakar, Senegal|14.693|-17.447\nSantiago, Chile|-33.449|-70.669\nWellington, New Zealand|-41.287|174.776\nTashkent, Uzbekistan|41.299|69.240\nYakutsk, Russia|62.035|129.676\nManila, Philippines|14.600|120.984\nNuuk, Greenland|64.175|-51.739\nTromsø, Norway|69.649|18.956".split('\n').map(s=>{const a=s.split('|');return{name:a[0],lat:+a[1],lon:+a[2]}});
+
+let HS={blitz:0,regular:0,long:0};
+try{Object.assign(HS,JSON.parse(localStorage.getItem('mapguesser')||'{}'))}catch(e){}
+const saveHS=()=>{try{localStorage.setItem('mapguesser',JSON.stringify(HS))}catch(e){}};
+
+/* ---- map data (Natural Earth-derived world polygons via ECharts map pack) ---- */
+let rings=[],dataOk=false;
+function dec(s,o){const r=[];let px=o[0],py=o[1];for(let i=0;i<s.length;i+=2){let x=s.charCodeAt(i)-64,y=s.charCodeAt(i+1)-64;x=(x>>1)^-(x&1);y=(y>>1)^-(y&1);px+=x;py+=y;r.push([px/1024,py/1024])}return r}
+function parse(g){const out=[];g.features.forEach(f=>{const q=f.geometry;if(!q)return;const P=q.type==='Polygon'?[q.coordinates]:q.coordinates,O=q.type==='Polygon'?[q.encodeOffsets]:q.encodeOffsets;P.forEach((p,i)=>p.forEach((r,j)=>out.push(typeof r==='string'?dec(r,O[i][j]):r)))});return out}
+window.echarts={registerMap:(n,g)=>{try{rings=parse(g);dataOk=true;draw()}catch(e){}}};
+const SRC=['https://cdn.jsdelivr.net/npm/echarts@4.9.0/map/js/world.js','https://cdn.jsdelivr.net/npm/echarts@4.8.0/map/js/world.js'];
+function load(i){if(i>=SRC.length)return;const s=document.createElement('script');s.src=SRC[i];s.onload=()=>{if(!dataOk)load(i+1)};s.onerror=()=>load(i+1);document.head.appendChild(s)}
+load(0);
+
+/* ---- Web Mercator view ---- */
+let W,H,dpr,ws,ox,oy,G=null;
+const nx=lon=>(lon+180)/360;
+const ny=lat=>{lat=Math.max(-85.05,Math.min(85.05,lat));return .5-Math.log(Math.tan(Math.PI/4+lat*Math.PI/360))/(2*Math.PI)};
+const sx=lon=>nx(lon)*ws-ox,sy=lat=>ny(lat)*ws-oy;
+const ll=(x,y)=>({lon:(x+ox)/ws*360-180,lat:Math.atan(Math.sinh(Math.PI*(1-2*(y+oy)/ws)))*180/Math.PI});
+function clamp(){ws=Math.min(Math.max(ws,Math.max(W,H)),256*2**15);ox=Math.min(Math.max(ox,0),ws-W);oy=Math.min(Math.max(oy,0),ws-H)}
+function center(p){ox=nx(p.lon)*ws-W/2;oy=ny(p.lat)*ws-H/2;clamp()}
+function reset(){ws=Math.max(W,H);center({lat:25,lon:10})}
+function resize(){W=innerWidth;H=innerHeight;dpr=devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;ws?clamp():reset();draw()}
+function zoom(f,x=W/2,y=H/2){const u=(x+ox)/ws,v=(y+oy)/ws;ws*=f;ws=Math.min(Math.max(ws,Math.max(W,H)),256*2**15);ox=u*ws-x;oy=v*ws-y;clamp();draw()}
+
+function pin(p,col,label){const x=sx(p.lon),y=sy(p.lat);ctx.beginPath();ctx.arc(x+2,y+4,11,0,7);ctx.fillStyle='#2b1a4a';ctx.fill();ctx.beginPath();ctx.arc(x,y,11,0,7);ctx.fillStyle=col;ctx.fill();ctx.lineWidth=3.5;ctx.strokeStyle='#2b1a4a';ctx.stroke();ctx.beginPath();ctx.arc(x-3,y-3,3,0,7);ctx.fillStyle='#fff';ctx.fill();if(label){ctx.font='700 14px Fredoka,system-ui,sans-serif';ctx.lineJoin='round';ctx.lineWidth=5;ctx.strokeStyle='#2b1a4a';ctx.strokeText(label,x+17,y+5);ctx.fillStyle='#fff';ctx.fillText(label,x+17,y+5)}}
+function draw(){
+ ctx.setTransform(dpr,0,0,dpr,0,0);const og=ctx.createLinearGradient(0,0,0,H);og.addColorStop(0,'#5cc8ff');og.addColorStop(1,'#9be6ff');ctx.fillStyle=og;ctx.fillRect(0,0,W,H);
+ ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=1;ctx.beginPath();
+ for(let a=-180;a<=180;a+=30){const x=sx(a);ctx.moveTo(x,0);ctx.lineTo(x,H)}
+ for(let a=-60;a<=60;a+=30){const y=sy(a);ctx.moveTo(0,y);ctx.lineTo(W,y)}
+ ctx.stroke();
+ ctx.beginPath();
+ for(const r of rings){for(let i=0;i<r.length;i++){const x=sx(r[i][0]),y=sy(r[i][1]);i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath()}
+ ctx.fillStyle='#a6e86b';ctx.fill();ctx.lineJoin='round';ctx.strokeStyle='#2b1a4a';ctx.lineWidth=1.3;ctx.stroke();
+ if(!G)return;
+ if(G.phase==='result'&&G.guess){ctx.setLineDash([4,9]);ctx.lineCap='round';ctx.strokeStyle='#2b1a4a';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(sx(G.guess.lon),sy(G.guess.lat));ctx.lineTo(sx(G.loc.lon),sy(G.loc.lat));ctx.stroke();ctx.setLineDash([])}
+ if(G.guess)pin(G.guess,'#ff5ea8');
+ if(G.phase==='result')pin(G.loc,'#39d98a',G.loc.name);
+}
+
+/* ---- input ---- */
+let drag=null;
+cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,ox,oy,m:0}};
+cv.onpointermove=e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.m=Math.max(drag.m,Math.hypot(dx,dy));ox=drag.ox-dx;oy=drag.oy-dy;clamp();draw()};
+cv.onpointerup=e=>{if(drag&&drag.m<5&&G&&G.phase==='guess'){G.guess=ll(e.clientX,e.clientY);$('go').disabled=false;$('go').textContent='Guess';draw()}drag=null};
+cv.onwheel=e=>{e.preventDefault();zoom(e.deltaY<0?1.3:.77,e.clientX,e.clientY)};
+$('zi').onclick=()=>zoom(1.6);$('zo').onclick=()=>zoom(.62);
+$('go').onclick=()=>submit();
+addEventListener('resize',resize);
+
+/* ---- game ---- */
+function cu(el,n){const t0=performance.now();(function f(){const k=Math.min(1,(performance.now()-t0)/700);el.textContent=fmt(n*(1-(1-k)**3));k<1&&requestAnimationFrame(f)})()}
+const hav=(a,b)=>{const r=Math.PI/180,dl=(b.lat-a.lat)*r,dn=(b.lon-a.lon)*r,h=Math.sin(dl/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dn/2)**2;return 12742*Math.asin(Math.sqrt(h))};
+function menu(){
+ G=null;reset();draw();['hud','clue','bar','zm','tbar'].forEach(i=>$(i).style.display='none');
+ $('card').innerHTML=`<div class="logo"><svg viewBox="0 0 64 64" width="76" height="76"><circle cx="32" cy="36" r="24" fill="#4cc9f0" stroke="#2b1a4a" stroke-width="4"/><path d="M18 28c6-6 12-4 14 2s-6 8-4 14-8 6-12-2-4-10 2-14zM40 38c5-3 10 0 9 6s-8 8-11 4 0-8 2-10z" fill="#a6e86b" stroke="#2b1a4a" stroke-width="3" stroke-linejoin="round"/><circle cx="32" cy="12" r="8" fill="#ff5ea8" stroke="#2b1a4a" stroke-width="4"/><circle cx="29.5" cy="9.5" r="2" fill="#fff"/></svg></div>
+ <h1>PIN PLANET</h1><div class="tag">Drop pins. Pop points!</div>
+ <div class="best"><small>HIGH SCORE · REGULAR</small><b>${fmt(HS.regular)}</b><small class="sub">${['blitz','long'].map(k=>MODES[k].ic+' '+MODES[k].label+' '+fmt(HS[k])).join('  ·  ')}</small></div>
+ <div class="modes">${Object.entries(MODES).map(([k,m])=>`<button class="mode" data-m="${k}"><i>${m.ic}</i><div><b>${m.label}</b><span>${m.tag} · ${m.n} rounds</span></div><em>${fmt(m.n*5000)}<small>max</small></em></button>`).join('')}</div>
+ <p class="hint">Closer and faster guesses score more — up to 5,000 a round.</p>`;
+ $('card').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>start(b.dataset.m));
+ $('ov').hidden=false;
+}
+function start(m){const n=MODES[m].n;G={m,n,i:0,total:0,res:[],locs:[...L].sort(()=>Math.random()-.5).slice(0,n)};['hud','clue','bar','zm','tbar'].forEach(i=>$(i).style.display='');$('ov').hidden=true;round()}
+function round(){
+ G.phase='guess';G.guess=null;G.loc=G.locs[G.i];G.t0=performance.now();reset();
+ $('rd').textContent=`${G.i+1}/${G.n}`;$('sc').textContent=fmt(G.total);$('nm').textContent=G.loc.name;$('tm').textContent=LIM;
+ $('go').hidden=false;$('go').disabled=true;$('go').textContent='Click the map to place a pin';$('res').hidden=true;draw();
+}
+function submit(){
+ if(!G||G.phase!=='guess')return;
+ G.phase='result';const t=(performance.now()-G.t0)/1000,g=G.guess,l=G.loc;
+ let d=null,acc=0,mul=.7,pts=0;
+ if(g){d=hav(g,l);acc=5000*Math.exp(-d/1500);mul=.7+.3*Math.max(0,Math.min(1,1-(t-5)/55));pts=Math.round(acc*mul)}
+ G.total+=pts;G.res.push({name:l.name,d,pts});$('sc').textContent=fmt(G.total);
+ if(g){const dx=Math.abs(nx(g.lon)-nx(l.lon)),dy=Math.abs(ny(g.lat)-ny(l.lat));ws=Math.min(W*.6/Math.max(dx,1e-4),H*.35/Math.max(dy,1e-4));ws=Math.min(ws,256*2**14);ws=Math.max(ws,Math.max(W,H));center({lat:(g.lat+l.lat)/2,lon:(g.lon+l.lon)/2});oy+=40;clamp()}
+ else{ws=Math.max(W,H)*3;center(l)}
+ const last=G.i+1>=G.n;
+ $('go').hidden=true;const r=$('res');r.hidden=false;
+ r.innerHTML=`<div class="dist">${d==null?'No guess placed':fmt(d)+' km away'}</div><div class="pts">+<span id="pn">0</span> pts</div><div class="brk">Accuracy ${fmt(acc)} × speed ${Math.round(mul*100)}% · ${t.toFixed(1)}s</div><button class="btn" id="nx">${last?'See results':'Next round'}</button>`;cu($('pn'),pts);
+ $('nx').onclick=()=>{last?finish():(G.i++,round())};
+ draw();
+}
+function finish(){
+ const m=G.m,max=G.n*5000,nb=G.total>HS[m];if(nb){HS[m]=G.total;saveHS()}
+ ['hud','clue','bar','zm','tbar'].forEach(i=>$(i).style.display='none');
+ const pc=G.total/max,rk=pc<.2?'Lost Tourist':pc<.4?'Backpacker':pc<.6?'Navigator':pc<.8?'Cartographer':'Atlas Master';
+ $('card').innerHTML=`<div class="tag">${MODES[m].ic} ${MODES[m].label} · ${G.n} rounds</div><div class="rank">${rk}</div>
+ <div class="big"><span id="fs">0</span></div><div class="tag">out of ${fmt(max)}</div>
+ ${nb?'<div class="nb">🏆 New high score!</div>':`<div class="tag" style="font-size:13px;margin-top:6px">Best ${MODES[m].label}: ${fmt(HS[m])}</div>`}
+ <div class="list">${G.res.map(r=>`<div><span>${r.name}</span><span>${r.d==null?'—':fmt(r.d)+' km'} · <b style="color:var(--ink)">${fmt(r.pts)}</b></span></div>`).join('')}</div>
+ <div class="modes"><button class="btn" id="again">Play ${MODES[m].label} again</button><button class="btn g" id="home">Main menu</button></div>`;cu($('fs'),G.total);
+ $('again').onclick=()=>start(m);$('home').onclick=menu;$('ov').hidden=false;
+}
+setInterval(()=>{if(!G||G.phase!=='guess')return;const left=Math.ceil(LIM-(performance.now()-G.t0)/1000);$('tm').textContent=Math.max(0,left);const fr=Math.max(0,1-(performance.now()-G.t0)/1000/LIM);$('tb').style.width=fr*100+'%';$('tb').style.background=fr>.5?'var(--grad)':fr>.2?'#ffd166':'#ff4d6d';$('hud').classList.toggle('low',left<=10);if(left<=0)submit()},250);
+resize();menu();
+</script>
+</body></html>
