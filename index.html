@@ -28,6 +28,8 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;cursor:cr
 #zm{position:fixed;right:12px;top:50%;display:flex;flex-direction:column;gap:8px}
 #zm button{width:42px;height:42px;border-radius:14px;border:3px solid var(--ink);background:var(--card);color:var(--ink);font:700 24px Fredoka,sans-serif;cursor:pointer;box-shadow:0 4px 0 var(--ink)}
 #zm button:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+#mt{position:fixed;right:12px;top:calc(env(safe-area-inset-top,0px) + 26px);z-index:9;width:42px;height:42px;border-radius:14px;border:3px solid var(--ink);background:var(--card);font-size:20px;cursor:pointer;box-shadow:0 4px 0 var(--ink)}
+#mt:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
 .dist{font-size:22px;font-weight:700}
 .pts{font-size:38px;font-weight:700;color:var(--pri);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:0 3px 0 var(--ink)}
 .brk{color:var(--mut);font-size:12px;margin-bottom:10px}
@@ -63,6 +65,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;cursor:cr
 </style></head>
 <body>
 <canvas id="c"></canvas>
+<button id="mt" aria-label="Toggle sound">🔊</button>
 <div id="tbar"><i id="tb"></i></div>
 <div class="box" id="hud"><div><small>Round</small><b id="rd">1/5</b></div><div><small>Score</small><b id="sc">0</b></div><div><small>Time</small><b id="tm">60</b></div></div>
 <div class="box" id="clue"><small>Where is…</small><h2 id="nm"></h2></div>
@@ -117,6 +120,43 @@ function draw(){
  if(G.phase==='result')pin(G.loc,'#39d98a',G.loc.name);
 }
 
+/* ---- sound (Web Audio, synthesized — no audio files) ---- */
+let AC=null,muted=false;
+try{muted=localStorage.getItem('pp_mute')==='1'}catch(e){}
+function au(){if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(AC&&AC.state==='suspended')AC.resume();return AC}
+function tone(f,t0,d,type='sine',v=.15,f2){
+ const a=au();if(!a||muted)return;
+ const o=a.createOscillator(),g=a.createGain(),s=a.currentTime+t0;
+ o.type=type;o.frequency.setValueAtTime(f,s);if(f2)o.frequency.exponentialRampToValueAtTime(f2,s+d);
+ g.gain.setValueAtTime(0.0001,s);g.gain.linearRampToValueAtTime(v,s+.01);g.gain.exponentialRampToValueAtTime(.0001,s+d);
+ o.connect(g);g.connect(a.destination);o.start(s);o.stop(s+d+.05);
+}
+const N={C:523.25,D:587.33,E:659.25,G:783.99,A:880,C2:1046.5,E2:1318.5};
+const SFX={
+ click:()=>tone(540,0,.07,'triangle',.12),
+ pin:()=>{tone(800,0,.14,'sine',.2,320);tone(180,.1,.12,'triangle',.18,90)},
+ zoom:()=>tone(380,0,.06,'square',.04,520),
+ round:()=>tone(300,0,.25,'sawtooth',.05,900),
+ tick:()=>tone(1000,0,.05,'square',.05),
+ result:p=>{
+  if(p>=4000)[N.C,N.E,N.G,N.C2].forEach((f,i)=>tone(f,i*.09,.25,'triangle',.18));
+  else if(p>=2000){tone(N.E,0,.18,'triangle',.16);tone(N.G,.12,.28,'triangle',.16)}
+  else if(p>0){tone(330,0,.2,'sine',.15);tone(262,.15,.3,'sine',.15)}
+  else{tone(220,0,.2,'sawtooth',.08,110);tone(150,.18,.35,'sawtooth',.08,70)}
+ },
+ start:()=>[N.C,N.G,N.C2].forEach((f,i)=>tone(f,i*.07,.18,'square',.07)),
+ end:nb=>{
+  const seq=nb?[N.C,N.E,N.G,N.C2,N.G,N.C2,N.E2]:[N.C,N.E,N.G,N.C2];
+  seq.forEach((f,i)=>tone(f,i*.11,.3,'triangle',.18));
+  if(nb)tone(N.E2,seq.length*.11,.7,'sine',.15);
+ }
+};
+function setMute(m){muted=m;$('mt').textContent=m?'🔇':'🔊';try{localStorage.setItem('pp_mute',m?'1':'0')}catch(e){}}
+$('mt').onclick=e=>{e.stopPropagation();setMute(!muted);if(!muted)SFX.click()};
+setMute(muted);
+document.addEventListener('pointerdown',()=>au(),{capture:true});
+document.addEventListener('click',e=>{if(e.target.closest('.btn,.mode')&&e.target.id!=='go')SFX.click()});
+
 /* ---- input ---- */
 let drag=null,pinch=null;const ptr=new Map();
 cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});
@@ -127,11 +167,11 @@ cv.onpointermove=e=>{if(!ptr.has(e.pointerId))return;ptr.set(e.pointerId,{x:e.cl
  if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.m=Math.max(drag.m,Math.hypot(dx,dy));ox=drag.ox-dx;oy=drag.oy-dy;clamp();draw()};
 cv.onpointerup=cv.onpointercancel=e=>{ptr.delete(e.pointerId);
  if(pinch){if(ptr.size<2){pinch=null;const r=[...ptr.values()][0];drag=r?{x:r.x,y:r.y,ox,oy,m:99}:null}return}
- if(drag&&drag.m<5&&e.type==='pointerup'&&G&&G.phase==='guess'){G.guess=ll(e.clientX,e.clientY);$('go').disabled=false;$('go').textContent='Guess';draw()}drag=null};
+ if(drag&&drag.m<5&&e.type==='pointerup'&&G&&G.phase==='guess'){G.guess=ll(e.clientX,e.clientY);SFX.pin();$('go').disabled=false;$('go').textContent='Guess';draw()}drag=null};
 ['gesturestart','gesturechange','gestureend'].forEach(t=>document.addEventListener(t,e=>e.preventDefault(),{passive:false}));
 document.addEventListener('touchmove',e=>{if(e.touches.length>1)e.preventDefault()},{passive:false});
 cv.onwheel=e=>{e.preventDefault();zoom(e.deltaY<0?1.3:.77,e.clientX,e.clientY)};
-$('zi').onclick=()=>zoom(1.6);$('zo').onclick=()=>zoom(.62);
+$('zi').onclick=()=>{SFX.zoom();zoom(1.6)};$('zo').onclick=()=>{SFX.zoom();zoom(.62)};
 $('go').onclick=()=>submit();
 addEventListener('resize',resize);
 
@@ -148,9 +188,9 @@ function menu(){
  $('card').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>start(b.dataset.m));
  $('ov').hidden=false;
 }
-function start(m){const n=MODES[m].n;G={m,n,i:0,total:0,res:[],locs:[...L].sort(()=>Math.random()-.5).slice(0,n)};['hud','clue','bar','zm','tbar'].forEach(i=>$(i).style.display='');$('ov').hidden=true;round()}
+function start(m){const n=MODES[m].n;G={m,n,i:0,total:0,res:[],locs:[...L].sort(()=>Math.random()-.5).slice(0,n)};['hud','clue','bar','zm','tbar'].forEach(i=>$(i).style.display='');$('ov').hidden=true;SFX.start();round()}
 function round(){
- G.phase='guess';G.guess=null;G.loc=G.locs[G.i];G.t0=performance.now();reset();
+ G.phase='guess';G.guess=null;G.lt=99;if(G.i>0)SFX.round();G.loc=G.locs[G.i];G.t0=performance.now();reset();
  $('rd').textContent=`${G.i+1}/${G.n}`;$('sc').textContent=fmt(G.total);$('nm').textContent=G.loc.name;$('tm').textContent=LIM;
  $('go').hidden=false;$('go').disabled=true;$('go').textContent='Click the map to place a pin';$('res').hidden=true;draw();
 }
@@ -159,7 +199,7 @@ function submit(){
  G.phase='result';const t=(performance.now()-G.t0)/1000,g=G.guess,l=G.loc;
  let d=null,acc=0,mul=.7,pts=0;
  if(g){d=hav(g,l);acc=5000*Math.exp(-d/1500);mul=.7+.3*Math.max(0,Math.min(1,1-(t-5)/55));pts=Math.round(acc*mul)}
- G.total+=pts;G.res.push({name:l.name,d,pts});$('sc').textContent=fmt(G.total);
+ G.total+=pts;SFX.result(pts);G.res.push({name:l.name,d,pts});$('sc').textContent=fmt(G.total);
  if(g){const dx=Math.abs(nx(g.lon)-nx(l.lon)),dy=Math.abs(ny(g.lat)-ny(l.lat));ws=Math.min(W*.6/Math.max(dx,1e-4),H*.35/Math.max(dy,1e-4));ws=Math.min(ws,256*2**14);ws=Math.max(ws,Math.max(W,H));center({lat:(g.lat+l.lat)/2,lon:(g.lon+l.lon)/2});oy+=40;clamp()}
  else{ws=Math.max(W,H)*3;center(l)}
  const last=G.i+1>=G.n;
@@ -170,6 +210,7 @@ function submit(){
 }
 function finish(){
  const m=G.m,max=G.n*5000,nb=G.total>HS[m];if(nb){HS[m]=G.total;saveHS()}
+ SFX.end(nb);
  ['hud','clue','bar','zm','tbar'].forEach(i=>$(i).style.display='none');
  const pc=G.total/max,rk=pc<.2?'Lost Tourist':pc<.4?'Backpacker':pc<.6?'Navigator':pc<.8?'Cartographer':'Atlas Master';
  $('card').innerHTML=`<div class="tag">${MODES[m].ic} ${MODES[m].label} · ${G.n} rounds</div><div class="rank">${rk}</div>
@@ -179,7 +220,7 @@ function finish(){
  <div class="modes"><button class="btn" id="again">Play ${MODES[m].label} again</button><button class="btn g" id="home">Main menu</button></div>`;cu($('fs'),G.total);
  $('again').onclick=()=>start(m);$('home').onclick=menu;$('ov').hidden=false;
 }
-setInterval(()=>{if(!G||G.phase!=='guess')return;const left=Math.ceil(LIM-(performance.now()-G.t0)/1000);$('tm').textContent=Math.max(0,left);const fr=Math.max(0,1-(performance.now()-G.t0)/1000/LIM);$('tb').style.width=fr*100+'%';$('tb').style.background=fr>.5?'var(--grad)':fr>.2?'#ffd166':'#ff4d6d';$('hud').classList.toggle('low',left<=10);if(left<=0)submit()},250);
+setInterval(()=>{if(!G||G.phase!=='guess')return;const left=Math.ceil(LIM-(performance.now()-G.t0)/1000);$('tm').textContent=Math.max(0,left);const fr=Math.max(0,1-(performance.now()-G.t0)/1000/LIM);$('tb').style.width=fr*100+'%';$('tb').style.background=fr>.5?'var(--grad)':fr>.2?'#ffd166':'#ff4d6d';$('hud').classList.toggle('low',left<=10);if(left<=10&&left>0&&left<G.lt){G.lt=left;SFX.tick()}if(left<=0)submit()},250);
 resize();menu();
 </script>
 </body></html>
